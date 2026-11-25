@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>态势大盘 · 香满园舆情监测与研判</title>
+<link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<main>
+  <h2>态势大盘 <span class="muted small" id="live">● 实时推送连接中…</span></h2>
+  <div class="grid g4" id="metrics"></div>
+  <div class="grid g3-1">
+    <div>
+      <div class="card"><h3>声量趋势（各批次新增条数）</h3><div id="trend"></div></div>
+      <div class="grid g2">
+        <div class="card"><h3>情感分布</h3><div id="donut"></div></div>
+        <div class="card"><h3>热点词云</h3><div id="cloud"></div></div>
+      </div>
+      <div class="card"><h3>事件列表</h3><div id="events"></div></div>
+    </div>
+    <div class="card"><h3>实时风险预警 <span class="tag" id="unread"></span></h3><div class="alert-list" id="alerts"></div></div>
+  </div>
+</main>
+<script src="/static/js/common.js"></script>
+<script>
+if (initPage("/")) {
+  load();
+  const es = openStream({
+    hello: () => { $("#live").textContent = "● 实时推送已连接"; $("#live").style.color = "var(--pos)"; },
+    batch_advanced: () => load(),
+    reset: () => load(),
+    alert_raised: a => { $("#alerts").insertAdjacentHTML("afterbegin", alertHtml(a, true)); },
+  });
+  if (es) es.onerror = () => { $("#live").textContent = "● 实时推送重连中…"; $("#live").style.color = "var(--muted)"; };
+}
+async function load() {
+  const d = await api("/api/overview");
+  const m = d.metrics;
+  $("#metrics").innerHTML = [
+    ["总声量", m.total, `另合并水军近似帖 ${m.merged} 条、过滤不相关 ${m.filtered} 条`],
+    ["负向率", m.negative_rate + "%", `负向 ${m.negative} 条`],
+    ["活跃事件", m.active_events, "未结束处置的事件"],
+    ["预警数", m.alerts, `未读 ${m.unread_alerts} 条`],
+  ].map(([k, v, s]) => `<div class="card metric"><div class="k">${k}</div><div class="v">${v}</div><div class="small muted">${s}</div></div>`).join("");
+  lineChart($("#trend"), d.trend.map(t => `${t.label} ${t.time}`), [
+    { name: "总声量", data: d.trend.map(t => t.total), color: "#2f6fde" },
+    { name: "负向", data: d.trend.map(t => t.negative), color: "#d64541" },
+    { name: "正向", data: d.trend.map(t => t.positive), color: "#2e9e5b" },
+  ]);
+  donutChart($("#donut"), [
+    { name: "正向", value: d.sentiment["正向"], color: "#2e9e5b" },
+    { name: "中性", value: d.sentiment["中性"], color: "#8a94a6" },
+    { name: "负向", value: d.sentiment["负向"], color: "#d64541" },
+  ], { size: 170 });
+  wordCloud($("#cloud"), d.words);
+  $("#unread").textContent = `未读 ${m.unread_alerts}`;
+  $("#alerts").innerHTML = d.alerts.map(a => alertHtml(a)).join("") || '<p class="muted">暂无预警</p>';
+  $("#events").innerHTML = "<table><tr><th>等级</th><th>事件</th><th>烈度</th><th>处置状态</th></tr>" +
+    d.events.map(e => `<tr><td>${lv(e.level)}${e.manual_override ? ' <span class="tag manual">人工调整</span>' : ""}</td>
+      <td><a href="/events/${e.id}">${esc(e.title)}</a> <span class="muted small">${e.id}</span></td><td>${e.intensity_score}</td><td>${esc(e.status)}</td></tr>`).join("") + "</table>";
+  setClock(d.clock);
+}
+</script>
+</body></html>

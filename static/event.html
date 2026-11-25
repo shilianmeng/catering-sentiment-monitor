@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>事件专题 · 香满园舆情监测与研判</title>
+<link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<main>
+  <div class="row" style="margin-bottom:10px"><select id="evSel"></select><span class="muted small">切换事件</span></div>
+  <div class="card" id="head"></div>
+  <div class="grid g2">
+    <div class="card"><h3>烈度评分（四项各 0–25 分）</h3><div id="scores"></div>
+      <div data-roles="analyst,admin" style="margin-top:12px">
+        <h3>人工改级</h3>
+        <div class="row"><select id="lvSel"><option value="S">S</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="auto">恢复自动评级</option></select>
+          <input id="lvReason" placeholder="改级理由（必填）" style="flex:1"><button class="primary" id="btnLevel">提交</button></div>
+      </div>
+      <div id="adjusts"></div>
+    </div>
+    <div class="card"><h3>声量走势（本事件各批次新增）</h3><div id="series"></div></div>
+  </div>
+  <div class="grid g2">
+    <div class="card"><h3>传播时间线 <span class="small muted">紫点＝首发，红框＝关键引爆节点，缩进＝转发层级</span></h3><div class="tl" id="timeline" style="max-height:520px;overflow:auto"></div></div>
+    <div class="card"><h3>实体关系图谱 <span class="small muted">连线＝同一条内容中共现，越粗共现越多</span></h3><div id="graph"></div></div>
+  </div>
+  <div class="card"><h3>观点聚类</h3><div id="clusters"></div></div>
+  <div class="grid g2">
+    <div class="card"><h3>处置流程</h3>
+      <div class="status-flow" id="flow"></div>
+      <div data-roles="pr,admin" style="margin-top:10px">
+        <div class="row"><input id="dNote" placeholder="处置备注（可选）" style="flex:1"><span id="dBtns"></span></div>
+      </div>
+      <div id="dlog" style="margin-top:10px"></div>
+    </div>
+    <div class="card"><h3>回应话术草案 <span class="small muted" id="llm"></span></h3>
+      <div class="row"><button class="primary" id="btnDraft">生成草案</button>
+        <button data-roles="pr,admin" id="btnAdopt">采纳最新草案</button>
+        <button data-roles="analyst,admin" id="btnReport">生成研判报告</button></div>
+      <div id="drafts" style="margin-top:10px"></div>
+    </div>
+  </div>
+  <div class="card"><h3>本事件预警记录</h3><div id="alerts"></div></div>
+</main>
+<script src="/static/js/common.js"></script>
+<script>
+const eid = decodeURIComponent(location.pathname.split("/").filter(Boolean).pop());
+const STATUS_ORDER = ["待处理", "跟踪中", "已核实", "已处理 / 辟谣处理"];
+const TYPE_COLOR = { 机构: "#2f6fde", 人物: "#8e44ad", 产品: "#e67e22", 事件: "#d64541" };
+if (initPage("/events/ev001")) init();
+
+async function init() {
+  const evs = await api("/api/events");
+  $("#evSel").innerHTML = evs.map(e => `<option value="${e.id}" ${e.id === eid ? "selected" : ""}>${e.id} [${e.level}] ${esc(e.title)}</option>`).join("");
+  $("#evSel").onchange = () => location.href = "/events/" + $("#evSel").value;
+  $("#btnLevel").onclick = changeLevel;
+  $("#btnDraft").onclick = async () => { $("#btnDraft").disabled = true; try { await api(`/api/events/${eid}/response-draft`, { method: "POST" }); toast("草案已生成"); load(); } catch (e) { toast(e.message, true); } $("#btnDraft").disabled = false; };
+  $("#btnAdopt").onclick = async () => { try { await api(`/api/events/${eid}/draft-adopt`, { method: "POST", body: {} }); toast("已采纳最新草案"); load(); } catch (e) { toast(e.message, true); } };
+  $("#btnReport").onclick = async () => {
+    $("#btnReport").disabled = true;
+    try { const r = await api(`/api/events/${eid}/report`, { method: "POST" }); toast("报告已生成"); location.href = "/reports?id=" + r.id; }
+    catch (e) { toast(e.message, true); $("#btnReport").disabled = false; }
+  };
+  try { await load(); } catch (e) { $("#head").innerHTML = `<p>${esc(e.message)}</p>`; return; }
+  openStream({ batch_advanced: () => load(), reset: () => load() });
+}
+
+async function load() {
+  const [ev, tl, gr] = await Promise.all([api("/api/events/" + eid), api(`/api/events/${eid}/timeline`), api(`/api/events/${eid}/graph`)]);
+  $("#head").innerHTML = `<div class="row"><span style="font-size:22px">${lv(ev.level)}</span><h2 style="margin:0">${esc(ev.title)}</h2>
+    ${ev.manual_override ? `<span class="tag manual">人工调整（自动评级 ${esc(ev.auto_level)} / ${ev.auto_score} 分）</span>` : ""}
+    <span class="tag">${esc(ev.category || "")}</span><span class="tag">处置状态：${esc(ev.status)}</span></div>
+    <div class="small muted" style="margin-top:6px">${esc(ev.id)}｜烈度 ${ev.intensity_score} 分｜相关内容 ${ev.content_count} 条（负向 ${ev.negative_count}，另合并水军近似帖 ${ev.merged_count} 条）｜峰值小时 ${ev.peak_volume} 条｜首发 ${esc(ev.first_content_id || "-")}
+    ｜关键词：${(ev.keywords || []).map(esc).join("、")}</div>`;
+  const b = ev.score_basis || {};
+  $("#scores").innerHTML = [["传播速度", ev.score_speed, b.speed], ["互动量", ev.score_interaction, b.interaction], ["KOL 参与", ev.score_kol, b.kol], ["敏感词", ev.score_sensitive, b.sensitive]]
+    .map(([n, v, basis]) => `<div style="margin-bottom:8px"><div class="row"><b>${n}</b><span>${v} / 25</span><span class="small muted">${esc(basis || "")}</span></div><div class="score-bar"><div style="width:${v * 4}%"></div></div></div>`).join("") +
+    `<div><b>合计 ${ev.intensity_score} 分</b> <span class="small muted">分级线可在「监测配置」调整</span></div>`;
+  $("#adjusts").innerHTML = ev.level_adjustments.length ? "<h3 style='margin-top:12px'>改级留痕</h3><table><tr><th>时间</th><th>操作人</th><th>自动评级</th><th>改为</th><th>理由</th></tr>" +
+    ev.level_adjustments.map(a => `<tr><td class="small">${esc(a.created_at)}</td><td>${esc(a.operator)}</td><td>${esc(a.auto_level)}（${a.auto_score}）</td><td>${esc(a.new_level)}</td><td>${esc(a.reason)}</td></tr>`).join("") + "</table>" : "";
+  const sr = ev.series;
+  lineChart($("#series"), sr.map(s => s.label), [{ name: "新增", data: sr.map(s => s.total), color: "#2f6fde" }, { name: "负向", data: sr.map(s => s.negative), color: "#d64541" }]);
+  renderTimeline(tl);
+  renderGraph(gr);
+  $("#clusters").innerHTML = ev.clusters.map(c => `<div class="mm"><div class="row">${sentiTag(c.sentiment)}${c.emotion ? `<span class="tag">${esc(c.emotion)}</span>` : ""}<b>${esc(c.summary)}</b><span class="muted small">${c.count} 条</span></div>
+    ${c.quotes.map(q => `<div class="small">「${esc(q.text)}」—— ${esc(q.author)} <a href="/workbench?cid=${q.id}">[${q.id}]</a></div>`).join("")}</div>`).join("") || '<p class="muted">暂无聚类</p>';
+  renderDisposal(ev, await api(`/api/events/${eid}/disposals`));
+  $("#llm").textContent = ev.llm_available ? "（已配置大模型，失败时自动降级为模板）" : "（未配置 OPENAI_API_KEY，使用模板生成）";
+  $("#drafts").innerHTML = ev.drafts.map(d => `<div class="mm"><div class="row small"><span class="tag ${d.gen_mode === "模型生成" ? "pos" : ""}">${esc(d.gen_mode)}</span>${d.model_name ? esc(d.model_name) : ""}
+    <span class="muted">${esc(d.created_by)} · ${esc(d.created_at)}</span>${d.adopted ? `<span class="tag manual">已采纳（${esc(d.adopted_by)}）</span>` : ""}
+    <button class="small adopt" data-roles="pr,admin" data-id="${d.id}" style="margin-left:auto">采纳此稿</button></div>
+    <div style="white-space:pre-wrap">${esc(d.content)}</div></div>`).join("") || '<p class="muted">还没有草案</p>';
+  $all(".adopt").forEach(bt => bt.onclick = async () => { try { await api(`/api/events/${eid}/draft-adopt`, { method: "POST", body: { draft_id: +bt.dataset.id } }); toast("已采纳"); load(); } catch (e) { toast(e.message, true); } });
+  $("#alerts").innerHTML = ev.alerts.map(a => alertHtml(a)).join("") || '<p class="muted">本事件暂无预警</p>';
+  applyRoles();
+}
+
+function renderTimeline(tl) {
+  $("#timeline").innerHTML = tl.nodes.map(n => {
+    const key = n.marks.includes("KOL引爆") || n.marks.includes("互动拐点");
+    return `<div class="tl-node ${key ? "key" : ""} ${n.marks.includes("首发") ? "first" : ""}" style="margin-left:${Math.min(n.depth, 4) * 22}px" onclick="location.href='/workbench?cid=${n.id}'">
+      <div class="row small"><b>${esc(n.published_at.slice(11))}</b>${n.marks.map(m => `<span class="tag ${m === "首发" ? "manual" : "neg"}">${m}</span>`).join("")}
+      <span class="tag src">${esc(n.platform)}</span>${esc(n.author)}${n.kol_weight >= 9 ? `（权重 ${n.kol_weight}）` : ""}
+      ${n.depth ? `<span class="muted">第 ${n.depth} 层转发</span>` : ""}${n.dup_count ? `<span class="tag sim">+${n.dup_count} 近似帖</span>` : ""}
+      <span class="muted" style="margin-left:auto">互动 ${n.interaction.toLocaleString()}</span></div>
+      <div class="small">${esc(n.text.length > 70 ? n.text.slice(0, 70) + "…" : n.text)}</div></div>`;
+  }).join("") || '<p class="muted">暂无内容</p>';
+}
+
+function renderGraph(gr) {
+  const el = $("#graph"), W = el.clientWidth || 560, H = 420, cx = W / 2, cy = H / 2;
+  const nodes = gr.nodes.slice(0, 16);
+  if (!nodes.length) { el.innerHTML = '<p class="muted">暂无实体</p>'; return; }
+  const pos = {};
+  nodes.forEach((n, i) => {
+    if (i === 0) { pos[n.id] = [cx, cy]; return; }
+    const a = (i - 1) / (nodes.length - 1) * Math.PI * 2 - Math.PI / 2, r = Math.min(W, H) / 2 - 50;
+    pos[n.id] = [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  });
+  const maxW = Math.max(1, ...gr.edges.map(e => e.weight)), maxC = Math.max(...nodes.map(n => n.count));
+  let g = "";
+  gr.edges.forEach(e => { const a = pos[e.source], b = pos[e.target]; if (!a || !b) return;
+    g += `<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#b9c3d6" stroke-width="${1 + e.weight / maxW * 5}"><title>${esc(e.source)} — ${esc(e.target)}：共现 ${e.weight} 次</title></line>`; });
+  nodes.forEach(n => { const [x, y] = pos[n.id], r = 10 + n.count / maxC * 16, c = TYPE_COLOR[n.type] || "#8a94a6";
+    g += `<a href="/workbench?cid=${encodeURIComponent(n.content_ids[0])}" aria-label="查看${esc(n.id)}的代表原文"><circle cx="${x}" cy="${y}" r="${r}" fill="${c}" opacity=".88"><title>${esc(n.id)}（${esc(n.type)}）出现 ${n.count} 次：${n.content_ids.join(", ")}</title></circle>
+      <text x="${x}" y="${y + r + 13}" font-size="12" text-anchor="middle">${esc(n.id)}</text></a>`; });
+  const types = [...new Set(nodes.map(n => n.type))];
+  el.innerHTML = `<svg width="${W}" height="${H}">${g}</svg><div class="small">${types.map(t => `<span class="tag" style="background:${TYPE_COLOR[t] || "#8a94a6"};color:#fff">${esc(t)}</span>`).join("")}</div>`;
+}
+
+function renderDisposal(ev, log) {
+  const terminal = ["已处理", "辟谣处理", "忽略"].includes(ev.status);
+  $("#flow").innerHTML = STATUS_ORDER.map(s => `<span class="${s.includes(ev.status) ? "on" : ""}">${s}</span>`).join("→ ") +
+    (ev.status === "忽略" ? ' <span class="on">忽略</span>' : "") + (terminal ? ' <span class="small muted">（流程已结束）</span>' : "");
+  $("#dBtns").innerHTML = ev.next_statuses.map(s => `<button class="${s === "忽略" ? "danger" : "primary"} dto" data-to="${s}">流转到「${s}」</button>`).join(" ");
+  $all(".dto").forEach(bt => bt.onclick = async () => {
+    try { await api(`/api/events/${eid}/disposal`, { method: "POST", body: { to_status: bt.dataset.to, note: $("#dNote").value } }); $("#dNote").value = ""; toast("已流转到「" + bt.dataset.to + "」"); load(); }
+    catch (e) { toast(e.message, true); }
+  });
+  $("#dlog").innerHTML = log.length ? "<table><tr><th>时间</th><th>流转</th><th>操作人</th><th>备注</th></tr>" +
+    log.map(d => `<tr><td class="small">${esc(d.created_at)}</td><td>${esc(d.from_status)} → <b>${esc(d.to_status)}</b></td><td>${esc(d.operator)}（${ROLE_NAME[d.role] || esc(d.role)}）</td><td>${esc(d.note || "")}</td></tr>`).join("") + "</table>"
+    : '<p class="muted small">暂无处置记录</p>';
+}
+
+async function changeLevel() {
+  try {
+    await api(`/api/events/${eid}/level`, { method: "POST", body: { level: $("#lvSel").value, reason: $("#lvReason").value } });
+    $("#lvReason").value = ""; toast("等级已更新并留痕"); load();
+  } catch (e) { toast(e.message, true); }
+}
+</script>
+</body></html>

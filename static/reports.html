@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>报告中心 · 香满园舆情监测与研判</title>
+<link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<main>
+  <h2>报告中心</h2>
+  <div class="grid" style="grid-template-columns:1fr 2fr">
+    <div class="card"><h3>报告列表</h3>
+      <p class="small muted">在「事件专题」页点「生成研判报告」（分析师 / 管理员）即可生成。</p>
+      <div id="list"></div></div>
+    <div class="card"><div class="row" style="margin-bottom:8px"><h3 style="margin:0" id="rtitle">报告预览</h3><span class="spacer" style="flex:1"></span>
+      <button id="btnMd" disabled>导出 Markdown</button><button id="btnPdf" class="primary" disabled>导出 PDF</button></div>
+      <div class="md" id="preview"><p class="muted">从左侧选择一份报告</p></div></div>
+  </div>
+</main>
+<aside class="drawer" id="drawer"></aside>
+<script src="/static/js/common.js"></script>
+<script>
+let cur = null;
+if (initPage("/reports")) init();
+
+async function init() {
+  $("#btnMd").onclick = () => download("md");
+  $("#btnPdf").onclick = () => download("pdf");
+  await loadList();
+  const id = new URLSearchParams(location.search).get("id");
+  if (id) show(id);
+}
+
+async function loadList() {
+  const rs = await api("/api/reports");
+  $("#list").innerHTML = rs.length ? "<table>" + rs.map(r => `<tr class="ritem" data-id="${r.id}" style="cursor:pointer">
+    <td>${lv(r.level)}</td><td><b>#${r.id}</b> ${esc(r.title)}<div class="small muted">${esc(r.created_by)} · ${esc(r.created_at)} · <span class="tag ${r.gen_mode === "模型生成" ? "pos" : ""}">${esc(r.gen_mode)}</span></div></td></tr>`).join("") + "</table>"
+    : '<p class="muted">还没有报告</p>';
+  $all(".ritem").forEach(tr => tr.onclick = () => show(tr.dataset.id));
+}
+
+async function show(id) {
+  try {
+    cur = await api("/api/reports/" + id);
+    $("#rtitle").textContent = `#${cur.id} ${cur.title}`;
+    $("#preview").innerHTML = renderMarkdown(cur.markdown);
+    $("#btnMd").disabled = $("#btnPdf").disabled = false;
+    $all(".cref", $("#preview")).forEach(a => a.onclick = () => openQuote(a.dataset.id));
+    history.replaceState(null, "", "/reports?id=" + id);
+  } catch (e) { toast(e.message, true); }
+}
+
+async function openQuote(cid) {
+  const c = await api("/api/contents/" + cid);
+  const dr = $("#drawer");
+  dr.innerHTML = `<button class="close" id="dclose">关闭 ✕</button><h3>原文引用 ${esc(c.id)}</h3>
+    <div class="row"><span class="tag src">${esc(c.source_type)}</span>${esc(c.platform)} · ${esc(c.author)} · ${esc(c.published_at)}</div>
+    <p>${esc(c.text)}</p>${c.ocr_text ? `<div class="mm"><b>OCR</b>（模拟）${esc(c.ocr_text)}</div>` : ""}${c.asr_text ? `<div class="mm"><b>ASR</b>（模拟）${esc(c.asr_text)}</div>` : ""}
+    <p><a href="/workbench?cid=${esc(c.id)}">在研判工作台打开 →</a></p>`;
+  dr.classList.add("open");
+  $("#dclose").onclick = () => dr.classList.remove("open");
+}
+
+async function download(fmt) {
+  if (!cur) return;
+  try {
+    const res = await fetch(`/api/reports/${cur.id}/export?format=${fmt}`, { headers: { Authorization: "Bearer " + Auth.token } });
+    if (!res.ok) { let m = "导出失败"; try { m = (await res.json()).detail || m; } catch {} throw new Error(m); }
+    const blob = await res.blob();
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `report_${cur.id}_${cur.event_id}.${fmt}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  } catch (e) { toast(e.message, true); }
+}
+</script>
+</body></html>

@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-21",
+  "backend_tests": 27,
+  "frontend_tests": 3,
+  "lint": "passed",
+  "type_check": "passed",
+  "build": "passed",
+  "discovery_without_top_level_flag": "27 passed; isolated database bootstrap",
+  "browser": {
+    "screenshots": [
+      "01_login",
+      "02_dashboard_T0",
+      "03_dashboard_T1",
+      "04_dashboard_T6",
+      "05_settings",
+      "06_workbench",
+      "07_filter",
+      "08_ocr_text",
+      "08_asr_text",
+      "09_event",
+      "09_timeline",
+      "09_graph",
+      "09_clusters",
+      "10_audit_trail",
+      "11_draft_template",
+      "12_report_template",
+      "11_draft_model",
+      "12_report_model",
+      "13_role_analyst",
+      "13_role_pr",
+      "14_not_found"
+    ],
+    "errors": [],
+    "checks": [
+      "登录后刷新保留会话",
+      "SSE advance T1",
+      "T6 大盘 73/76.7%，ev001 69/81.2%/S96（改级前）",
+      "导出 Markdown",
+      "导出 PDF",
+      "真实模型话术、报告及双格式导出",
+      "退出后受保护页面重定向 analyst",
+      "role analyst",
+      "退出后受保护页面重定向 pr",
+      "role pr"
+    ],
+    "passed": true
+  },
+  "updated_legacy_screenshot_names": 29,
+  "launch_smoke": "passed: root run.py 8091, Vite 5180, proxied login; isolated MySQL database; test processes stopped"
+}

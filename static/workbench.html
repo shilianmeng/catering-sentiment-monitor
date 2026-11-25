@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>研判工作台 · 香满园舆情监测与研判</title>
+<link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<main>
+  <h2>研判工作台 <span class="muted small" id="total"></span></h2>
+  <div class="card filters">
+    <select id="f_topic"><option value="">全部主题</option></select>
+    <select id="f_source"><option value="">全部信源</option><option>社交媒体</option><option>新闻门户</option><option>短视频平台</option><option>行业论坛</option></select>
+    <select id="f_sentiment"><option value="">全部情感</option><option>负向</option><option>中性</option><option>正向</option></select>
+    <select id="f_emotion"><option value="">全部情绪</option><option>愤怒</option><option>失望</option><option>恐慌</option><option>质疑</option></select>
+    <select id="f_level"><option value="">全部事件等级</option><option>S</option><option>A</option><option>B</option><option>C</option></select>
+    <select id="f_event"><option value="">全部事件</option></select>
+    <select id="f_media"><option value="">全部形态</option><option value="text">文字</option><option value="image">图片</option><option value="video">视频</option></select>
+    <input id="f_start" type="datetime-local" title="开始时间">
+    <input id="f_end" type="datetime-local" title="结束时间">
+    <input id="f_kw" placeholder="关键词（正文/OCR/ASR/作者）" style="width:200px">
+    <label class="small"><input type="checkbox" id="f_dup"> 显示被合并的水军近似帖</label>
+    <button class="primary" id="btnSearch">查询</button>
+    <button id="btnClear">清空</button>
+  </div>
+  <div class="cards" id="cards"></div>
+  <div class="pager" id="pager"></div>
+</main>
+<aside class="drawer" id="drawer"></aside>
+<script src="/static/js/common.js"></script>
+<script>
+const MEDIA = { text: "文字", image: "图片", video: "视频" };
+let page = 1;
+if (initPage("/workbench")) init();
+
+async function init() {
+  const [topics, events] = await Promise.all([api("/api/topics"), api("/api/events")]);
+  $("#f_topic").insertAdjacentHTML("beforeend", topics.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join(""));
+  $("#f_event").insertAdjacentHTML("beforeend", events.map(e => `<option value="${e.id}">${e.id} ${esc(e.title)}</option>`).join(""));
+  const q = new URLSearchParams(location.search);
+  if (q.get("event_id")) $("#f_event").value = q.get("event_id");
+  if (q.get("keyword")) $("#f_kw").value = q.get("keyword");
+  $("#btnSearch").onclick = () => { page = 1; load(); };
+  $("#f_kw").onkeydown = e => { if (e.key === "Enter") { page = 1; load(); } };
+  $("#btnClear").onclick = () => { $all(".filters select, .filters input").forEach(x => x.type === "checkbox" ? x.checked = false : x.value = ""); page = 1; load(); };
+  load();
+  openStream({ batch_advanced: () => load(), reset: () => { page = 1; load(); } });
+  if (q.get("cid")) openDetail(q.get("cid"));
+}
+
+function params() {
+  const p = new URLSearchParams();
+  const m = { topic_id: "#f_topic", source_type: "#f_source", sentiment: "#f_sentiment", emotion: "#f_emotion",
+    level: "#f_level", event_id: "#f_event", media_type: "#f_media", start: "#f_start", end: "#f_end", keyword: "#f_kw" };
+  for (const [k, s] of Object.entries(m)) { const v = $(s).value.trim(); if (v) p.set(k, v); }
+  if ($("#f_dup").checked) p.set("include_dup", "true");
+  p.set("page", page); p.set("page_size", 12);
+  return p;
+}
+
+async function load() {
+  const d = await api("/api/contents?" + params());
+  const kw = $("#f_kw").value.trim();
+  $("#total").textContent = `共 ${d.total} 条`;
+  $("#cards").innerHTML = d.items.map(c => `
+    <div class="ccard" data-id="${c.id}">
+      <div class="row meta"><span class="tag src">${esc(c.source_type)}</span>${esc(c.platform)} · ${esc(c.author)}
+        ${c.kol_weight >= 9 ? '<span class="tag sens">KOL 权重 ' + c.kol_weight + "</span>" : ""}
+        <span style="margin-left:auto">${esc(c.published_at.slice(5))}</span></div>
+      <div class="txt">${hl(c.text, kw)}</div>
+      <div class="row">${sentiTag(c.sentiment)}${c.sentiment === "负向" && c.emotion ? `<span class="tag neg">${esc(c.emotion)}</span>` : ""}
+        ${c.media_type !== "text" ? `<span class="tag">${MEDIA[c.media_type]}</span>` : ""}
+        ${(c.sensitive_hits || []).map(w => `<span class="tag sens">${esc(w)}</span>`).join("")}
+        ${c.dup_count ? `<span class="tag sim">合并近似帖 ${c.dup_count} 条</span>` : ""}
+        ${c.dup_of ? `<span class="tag sim">已并入 ${esc(c.dup_of)}</span>` : ""}
+        ${c.event_id ? `<span style="margin-left:auto">${lv(c.event_level)} <span class="small">${esc(c.event_id)}</span></span>` : ""}</div>
+      <div class="meta">${c.id}｜转 ${c.reposts} · 评 ${c.comments} · 赞 ${c.likes}</div>
+    </div>`).join("") || '<p class="muted">没有符合条件的内容</p>';
+  $all(".ccard").forEach(el => el.onclick = () => openDetail(el.dataset.id));
+  const pages = Math.max(1, Math.ceil(d.total / d.page_size));
+  $("#pager").innerHTML = `<button id="pv" ${page <= 1 ? "disabled" : ""}>上一页</button><span>第 ${page} / ${pages} 页</span><button id="nx" ${page >= pages ? "disabled" : ""}>下一页</button>`;
+  $("#pv").onclick = () => { page--; load(); };
+  $("#nx").onclick = () => { page++; load(); };
+}
+
+async function openDetail(cid) {
+  const c = await api("/api/contents/" + encodeURIComponent(cid));
+  const dr = $("#drawer");
+  dr.innerHTML = `<button class="close" id="dclose">关闭 ✕</button>
+    <h3>${esc(c.id)} 内容详情</h3>
+    <div class="row"><span class="tag src">${esc(c.source_type)}</span>${esc(c.platform)}｜${esc(c.author)}（${esc(c.author_type || "普通用户")}，权重 ${c.kol_weight}）</div>
+    <div class="small muted">发布时间 ${esc(c.published_at)}（虚拟时间）</div>
+    <p>${esc(c.text)}</p>
+    ${c.ocr_text ? `<div class="mm"><b>图片 OCR 识别文本</b> <span class="tag sim">（模拟）</span><div>${esc(c.ocr_text)}</div></div>` : ""}
+    ${c.asr_text ? `<div class="mm"><b>视频 ASR 转写文本</b> <span class="tag sim">（模拟）</span><div>${esc(c.asr_text)}</div></div>` : ""}
+    <table>
+      <tr><th>情感</th><td>${sentiTag(c.sentiment)} ${c.sentiment === "负向" ? esc(c.emotion || "") : ""}</td></tr>
+      <tr><th>敏感词</th><td>${(c.sensitive_hits || []).map(w => `<span class="tag sens">${esc(w)}</span>`).join("") || "无"}</td></tr>
+      <tr><th>实体</th><td>${(c.entities || []).map(e => `<span class="tag">${esc(e.name)}·${esc(e.type)}</span>`).join("") || "无"}</td></tr>
+      <tr><th>互动</th><td>转 ${c.reposts} · 评 ${c.comments} · 赞 ${c.likes}（合计 ${c.interaction}）</td></tr>
+      <tr><th>所属事件</th><td>${c.event_id ? `${lv(c.event_level)} <a href="/events/${esc(c.event_id)}">${esc(c.event_title)}</a>` : "未归入事件"}</td></tr>
+    </table>
+    ${c.parent_chain.length ? `<h3 style="margin-top:12px">转发链（向上追溯）</h3>` + c.parent_chain.map((p, i) =>
+      `<div class="mm small"><b>${"↑ ".repeat(i + 1)}${esc(p.id)}</b> ${esc(p.author)} · ${esc(p.platform)} · ${esc(p.published_at.slice(5))}<div>${esc(p.text)}</div></div>`).join("") : ""}
+    ${c.dup_of ? `<p class="small">本帖是水军近似帖，已并入 <a href="javascript:void(0)" id="toParent">${esc(c.dup_of)}</a>，不计入统计。</p>` : ""}
+    ${c.merged_items.length ? `<h3 style="margin-top:12px">已合并的近似帖（${c.merged_items.length} 条）</h3>` + c.merged_items.map(m =>
+      `<div class="mm small"><b>${esc(m.id)}</b> ${esc(m.author)} · ${esc(m.published_at.slice(5))}<div>${esc(m.text)}</div></div>`).join("") : ""}`;
+  dr.classList.add("open");
+  $("#dclose").onclick = () => dr.classList.remove("open");
+  if ($("#toParent")) $("#toParent").onclick = () => openDetail(c.dup_of);
+}
+</script>
+</body></html>

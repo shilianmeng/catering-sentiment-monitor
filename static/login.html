@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>登录 · 香满园舆情监测与研判</title>
+<link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<div class="login-wrap">
+  <div class="card">
+    <h2>香满园舆情监测与研判平台</h2>
+    <p class="muted small">本系统数据均为模拟数据，品牌「香满园」为虚构。</p>
+    <form id="f">
+      <p><input id="u" placeholder="用户名" style="width:100%" autocomplete="username"></p>
+      <p><input id="p" type="password" placeholder="密码" style="width:100%" autocomplete="current-password"></p>
+      <p><button class="primary" style="width:100%">登 录</button></p>
+      <p id="err" class="small" style="color:var(--neg)"></p>
+    </form>
+  </div>
+  <div class="card small">
+    <b>演示账号</b>（密码统一 <code>123456</code>，点击快速填入）
+    <table>
+      <tr><th>账号</th><th>角色</th><th>能做什么</th></tr>
+      <tr><td><a href="#" data-u="analyst">analyst</a></td><td>分析师</td><td>维护主题词包、人工改级、生成报告</td></tr>
+      <tr><td><a href="#" data-u="pr">pr</a></td><td>公关</td><td>处置流转、生成并采纳话术草案</td></tr>
+      <tr><td><a href="#" data-u="admin">admin</a></td><td>管理员</td><td>全部功能，含预警阈值与通知渠道</td></tr>
+    </table>
+  </div>
+</div>
+<script src="/static/js/common.js"></script>
+<script>
+$all("[data-u]").forEach(a => a.onclick = e => { e.preventDefault(); $("#u").value = a.dataset.u; $("#p").value = "123456"; });
+$("#f").onsubmit = async e => {
+  e.preventDefault();
+  try {
+    const d = await api("/api/login", { method: "POST", body: { username: $("#u").value, password: $("#p").value } });
+    Auth.save(d); location.href = "/";
+  } catch (err) { $("#err").textContent = err.message; }
+};
+</script>
+</body></html>

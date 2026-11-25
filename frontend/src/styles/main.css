@@ -1,0 +1,200 @@
+/* 全局样式：设计变量 + 少量通用类。组件私有样式写在各自 <style scoped> 里。 */
+:root {
+  --bg: #f4f6fa;
+  --card: #fff;
+  --text: #1f2633;
+  --muted: #6b7385;
+  --line: #e3e7ef;
+  --primary: #2f6fde;
+  --neg: #d64541;
+  --pos: #2e9e5b;
+  --neu: #8a94a6;
+  --lv-s: #c0392b;
+  --lv-a: #e67e22;
+  --lv-b: #d4ac0d;
+  --lv-c: #7f8c8d;
+  --header-h: 52px;
+
+  /* Element Plus 主色与项目主色一致 */
+  --el-color-primary: #2f6fde;
+  --el-color-primary-light-3: #6d9ae8;
+  --el-color-primary-light-5: #97b7ef;
+  --el-color-primary-light-7: #c1d4f5;
+  --el-color-primary-light-8: #d5e2f8;
+  --el-color-primary-light-9: #eaf1fc;
+  --el-color-primary-dark-2: #2659b2;
+  --el-color-danger: #d64541;
+  --el-color-success: #2e9e5b;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font:
+    14px/1.6 'Microsoft YaHei',
+    'PingFang SC',
+    system-ui,
+    sans-serif;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+h2 {
+  margin: 4px 0 14px;
+  font-size: 18px;
+}
+
+h3 {
+  margin: 0 0 10px;
+  font-size: 15px;
+}
+
+mark {
+  background: #ffe58f;
+  padding: 0 1px;
+}
+
+.page {
+  padding: 18px 22px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+}
+
+.grid {
+  display: grid;
+  gap: 14px;
+}
+.g4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+.g2 {
+  grid-template-columns: 1fr 1fr;
+}
+.g3-1 {
+  grid-template-columns: 2fr 1fr;
+}
+.g1-2 {
+  grid-template-columns: 1fr 2fr;
+}
+
+@media (max-width: 1100px) {
+  .g4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .g2,
+  .g3-1,
+  .g1-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.muted {
+  color: var(--muted);
+}
+.small {
+  font-size: 12px;
+}
+.spacer {
+  flex: 1;
+}
+
+/* 小标签 */
+.tag {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 10px;
+  font-size: 12px;
+  line-height: 20px;
+  background: #eef1f6;
+  color: #4a5368;
+  margin-right: 4px;
+  white-space: nowrap;
+}
+.tag.neg {
+  background: #fdecea;
+  color: var(--neg);
+}
+.tag.pos {
+  background: #e8f6ee;
+  color: var(--pos);
+}
+.tag.neu {
+  background: #eef1f6;
+  color: var(--neu);
+}
+.tag.src {
+  background: #e9f0fd;
+  color: var(--primary);
+}
+.tag.sim {
+  background: #fff4e0;
+  color: #a86a00;
+}
+.tag.manual {
+  background: #6c3fc5;
+  color: #fff;
+}
+.tag.sens {
+  background: #fff0f0;
+  color: #b03a2e;
+  border: 1px solid #f3c6c2;
+}
+
+/* 虚线框：OCR/ASR、引用、聚类等 */
+.mm {
+  background: #fafbfd;
+  border: 1px dashed #d8dde8;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 8px 0;
+}
+
+/* 简单数据表（复杂表格用 el-table） */
+table.plain {
+  width: 100%;
+  border-collapse: collapse;
+}
+table.plain th,
+table.plain td {
+  border-bottom: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+table.plain th {
+  background: #f7f9fc;
+  font-weight: normal;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  padding: 8px 0;
+}

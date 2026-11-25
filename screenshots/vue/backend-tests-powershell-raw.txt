@@ -1,0 +1,38 @@
+python : test_empty_model_section_falls_back (test_agent.ReportModelTest.test_empty_model_section_falls_back) ... ok
+所在位置 行:2 字符: 1
++ python -m unittest discover -s tests -v 2>&1 | Tee-Object -FilePath ' ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (test_empty_mode...ls_back) ... ok:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+test_valid_model_sections_are_used (test_agent.ReportModelTest.test_valid_model_sections_are_used) ... ok
+test_config_validation (test_api.ApiTest.test_config_validation) ... ok
+test_demo_advance (test_api.ApiTest.test_demo_advance) ... ok
+test_demo_control_permissions (test_api.ApiTest.test_demo_control_permissions) ... ok
+test_disposal_state_machine (test_api.ApiTest.test_disposal_state_machine) ... ok
+test_draft_report_export (test_api.ApiTest.test_draft_report_export) ... ok
+test_health_and_error_envelope (test_api.ApiTest.test_health_and_error_envelope) ... ok
+test_login_and_auth (test_api.ApiTest.test_login_and_auth) ... ok
+test_manual_level (test_api.ApiTest.test_manual_level) ... ok
+test_overview_and_contents (test_api.ApiTest.test_overview_and_contents) ... ok
+test_role_permissions (test_api.ApiTest.test_role_permissions) ... ok
+test_topic_crud (test_api.ApiTest.test_topic_crud) ... ok
+test_topic_delete_references (test_api.ApiTest.test_topic_delete_references) ... ok
+test_advance_past_end_is_noop (test_logic.TestDemoFlow.test_advance_past_end_is_noop) ... ok
+test_alert_sequence_and_silence (test_logic.TestDemoFlow.test_alert_sequence_and_silence) ... ok
+test_clusters (test_logic.TestDemoFlow.test_clusters) ... ok
+test_dedup_and_filter_counts (test_logic.TestDemoFlow.test_dedup_and_filter_counts) ... ok
+test_kol_rule_in_upgrade_alert (test_logic.TestDemoFlow.test_kol_rule_in_upgrade_alert) ... ok
+test_level_progression (test_logic.TestDemoFlow.test_level_progression) ... ok
+test_report_markdown_and_pdf (test_logic.TestDemoFlow.test_report_markdown_and_pdf) ... ok
+test_batch_labels_numbered_0_to_7 (test_logic.TestPureRules.test_batch_labels_numbered_0_to_7) ... ok
+test_level_thresholds (test_logic.TestPureRules.test_level_thresholds) ... ok
+test_simhash_near_duplicate (test_logic.TestPureRules.test_simhash_near_duplicate) ... ok
+test_tagging (test_logic.TestPureRules.test_tagging) ... ok
+test_unicode_longtext_upsert_and_rollback (test_mysql.MySQLTest.test_unicode_longtext_upsert_and_rollback) ... ok
+test_paragraphs_stay_in_page (test_pdf.PdfLayoutTest.test_paragraphs_stay_in_page) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 6.130s
+
+OK

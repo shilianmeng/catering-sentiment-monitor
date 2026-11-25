@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>监测配置 · 香满园舆情监测与研判</title>
+<link rel="stylesheet" href="/static/css/style.css"></head>
+<body>
+<main>
+  <h2>监测配置</h2>
+  <div class="card"><h3>监测主题与关键词包</h3>
+    <div id="topics"></div>
+    <div data-roles="analyst,admin" style="margin-top:12px">
+      <h3 id="formTitle">新建主题</h3>
+      <div class="row"><input id="tName" placeholder="主题名称"><input id="tKw" placeholder="关键词，用逗号分隔" style="flex:1"></div>
+      <div class="row" style="margin-top:6px" id="tCh"></div>
+      <div class="row" style="margin-top:6px"><label><input type="checkbox" id="tEn" checked> 启用</label>
+        <button class="primary" id="btnSave">保存</button><button id="btnCancel" class="hidden">取消编辑</button></div>
+    </div>
+    <p class="small muted" data-roles="pr">公关角色只能查看主题，维护请联系分析师。</p>
+  </div>
+  <div class="card"><h3>预警规则与通知</h3>
+    <p class="small muted" id="cfgHint"></p>
+    <table id="cfg"></table>
+    <div class="row" style="margin-top:10px" data-roles="admin"><button class="primary" id="btnCfg">保存配置</button><span class="small muted">修改等级分数线后会立即按新分数线重算所有事件等级（人工改过的除外）</span></div>
+  </div>
+</main>
+<script src="/static/js/common.js"></script>
+<script>
+const SOURCES = ["社交媒体", "新闻门户", "短视频平台", "行业论坛"];
+const CFG = [
+  ["surge_threshold", "声量激增阈值（单小时负向声量环比增幅 %）", "number"],
+  ["surge_min_count", "激增最小条数（本小时负向条数不少于）", "number"],
+  ["kol_alert_weight", "KOL 发声预警的账号权重下限（≥）", "number"],
+  ["silence_minutes", "同事件静默期（虚拟分钟；等级升级不受静默限制）", "number"],
+  ["level_s", "S 级分数线（≥）", "number"], ["level_a", "A 级分数线（≥）", "number"], ["level_b", "B 级分数线（≥）", "number"],
+  ["notify_site", "站内通知", "bool"], ["notify_email", "邮件通知（模拟）", "bool"], ["notify_sms", "短信通知（模拟）", "bool"],
+];
+let editing = null, topics = [];
+if (initPage("/settings")) init();
+
+async function init() {
+  $("#tCh").innerHTML = "信源开关：" + SOURCES.map(s => `<label><input type="checkbox" class="ch" value="${s}" checked> ${s}</label>`).join(" ");
+  $("#btnSave").onclick = saveTopic;
+  $("#btnCancel").onclick = resetForm;
+  $("#btnCfg").onclick = saveCfg;
+  await Promise.all([loadTopics(), loadCfg()]);
+}
+
+async function loadTopics() {
+  topics = await api("/api/topics");
+  const canEdit = Auth.can("analyst", "admin");
+  $("#topics").innerHTML = "<table><tr><th>ID</th><th>主题</th><th>关键词</th><th>信源</th><th>状态</th><th>命中</th>" + (canEdit ? "<th>操作</th>" : "") + "</tr>" +
+    topics.map(t => `<tr><td>${t.id}</td><td>${esc(t.name)}</td><td>${t.keywords.map(k => `<span class="tag">${esc(k)}</span>`).join("")}</td>
+      <td class="small">${SOURCES.map(s => `<span class="tag ${t.channels[s] ? "src" : ""}">${t.channels[s] ? "✓" : "✗"} ${s}</span>`).join("")}</td>
+      <td>${t.enabled ? '<span class="tag pos">启用</span>' : '<span class="tag">停用</span>'}</td><td>${t.content_count}</td>
+      ${canEdit ? `<td><button class="ed" data-id="${t.id}">编辑</button> <button class="danger del" data-id="${t.id}">删除</button></td>` : ""}</tr>`).join("") + "</table>";
+  $all(".ed").forEach(b => b.onclick = () => editTopic(+b.dataset.id));
+  $all(".del").forEach(b => b.onclick = async () => {
+    if (b.dataset.confirm !== "1") { b.dataset.confirm = "1"; b.textContent = "再点一次确认"; return; }
+    try { await api("/api/topics/" + b.dataset.id, { method: "DELETE" }); toast("已删除"); loadTopics(); } catch (e) { toast(e.message, true); }
+  });
+}
+
+function editTopic(id) {
+  const t = topics.find(x => x.id === id); editing = id;
+  $("#formTitle").textContent = `编辑主题 #${id}`;
+  $("#tName").value = t.name; $("#tKw").value = t.keywords.join(", "); $("#tEn").checked = !!t.enabled;
+  $all(".ch").forEach(c => c.checked = !!t.channels[c.value]);
+  $("#btnCancel").classList.remove("hidden");
+}
+function resetForm() {
+  editing = null; $("#formTitle").textContent = "新建主题"; $("#tName").value = ""; $("#tKw").value = ""; $("#tEn").checked = true;
+  $all(".ch").forEach(c => c.checked = true); $("#btnCancel").classList.add("hidden");
+}
+async function saveTopic() {
+  const body = { name: $("#tName").value, keywords: $("#tKw").value, enabled: $("#tEn").checked,
+    channels: Object.fromEntries($all(".ch").map(c => [c.value, c.checked])) };
+  try {
+    await api(editing ? "/api/topics/" + editing : "/api/topics", { method: editing ? "PUT" : "POST", body });
+    toast(editing ? "主题已更新" : "主题已创建"); resetForm(); loadTopics();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function loadCfg() {
+  const c = await api("/api/config");
+  const admin = Auth.can("admin");
+  $("#cfgHint").textContent = (admin ? "" : "只有管理员可以修改，当前为只读。") + `大模型：${c.llm_available ? "已配置（" + c.llm_model + "）" : "未配置 OPENAI_API_KEY，报告与草案使用模板生成"}`;
+  $("#cfg").innerHTML = CFG.map(([k, n, t]) => `<tr><th style="width:50%">${n}</th><td>${t === "bool"
+    ? `<label><input type="checkbox" data-k="${k}" ${c[k] ? "checked" : ""} ${admin ? "" : "disabled"}> 开启</label>`
+    : `<input type="number" data-k="${k}" value="${c[k]}" style="width:120px" ${admin ? "" : "disabled"}>`}</td></tr>`).join("");
+}
+async function saveCfg() {
+  const body = {};
+  $all("#cfg [data-k]").forEach(i => body[i.dataset.k] = i.type === "checkbox" ? i.checked : i.value);
+  try { await api("/api/config", { method: "PUT", body }); toast("配置已保存"); loadCfg(); } catch (e) { toast(e.message, true); }
+}
+</script>
+</body></html>

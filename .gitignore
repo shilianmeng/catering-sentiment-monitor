@@ -1,0 +1,22 @@
+data/
+__pycache__/
+*.pyc
+*.db
+.env
+.env.local
+
+# 凭据：只提交 secrets.example.json
+secrets.local.json
+
+node_modules/
+node_modules.incomplete-*/
+dist/
+logs/
+*.tsbuildinfo
+.venv/
+
+# 不进仓库（盟哥 11-25 定）
+_archive/
+docs/*合规体检报告_*.md
+docs/*合规体检报告_*.pdf
+screenshots/**/*.log

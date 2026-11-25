@@ -1,0 +1,32 @@
+test_empty_model_section_falls_back (tests.test_agent.ReportModelTest.test_empty_model_section_falls_back) ... ok
+test_valid_model_sections_are_used (tests.test_agent.ReportModelTest.test_valid_model_sections_are_used) ... ok
+test_config_validation (tests.test_api.ApiTest.test_config_validation) ... ok
+test_demo_advance (tests.test_api.ApiTest.test_demo_advance) ... ok
+test_demo_control_permissions (tests.test_api.ApiTest.test_demo_control_permissions) ... ok
+test_disposal_state_machine (tests.test_api.ApiTest.test_disposal_state_machine) ... ok
+test_draft_report_export (tests.test_api.ApiTest.test_draft_report_export) ... ok
+test_login_and_auth (tests.test_api.ApiTest.test_login_and_auth) ... ok
+test_manual_level (tests.test_api.ApiTest.test_manual_level) ... ok
+test_overview_and_contents (tests.test_api.ApiTest.test_overview_and_contents) ... ok
+test_pages_served (tests.test_api.ApiTest.test_pages_served) ... ok
+test_role_permissions (tests.test_api.ApiTest.test_role_permissions) ... ok
+test_topic_crud (tests.test_api.ApiTest.test_topic_crud) ... ok
+test_topic_delete_references (tests.test_api.ApiTest.test_topic_delete_references) ... ok
+test_advance_past_end_is_noop (tests.test_logic.TestDemoFlow.test_advance_past_end_is_noop) ... ok
+test_alert_sequence_and_silence (tests.test_logic.TestDemoFlow.test_alert_sequence_and_silence) ... ok
+test_clusters (tests.test_logic.TestDemoFlow.test_clusters) ... ok
+test_dedup_and_filter_counts (tests.test_logic.TestDemoFlow.test_dedup_and_filter_counts) ... ok
+test_kol_rule_in_upgrade_alert (tests.test_logic.TestDemoFlow.test_kol_rule_in_upgrade_alert) ... ok
+test_level_progression (tests.test_logic.TestDemoFlow.test_level_progression) ... ok
+test_report_markdown_and_pdf (tests.test_logic.TestDemoFlow.test_report_markdown_and_pdf) ... ok
+test_batch_labels_numbered_0_to_7 (tests.test_logic.TestPureRules.test_batch_labels_numbered_0_to_7) ... ok
+test_level_thresholds (tests.test_logic.TestPureRules.test_level_thresholds) ... ok
+test_simhash_near_duplicate (tests.test_logic.TestPureRules.test_simhash_near_duplicate) ... ok
+test_tagging (tests.test_logic.TestPureRules.test_tagging) ... ok
+test_unicode_longtext_upsert_and_rollback (tests.test_mysql.MySQLTest.test_unicode_longtext_upsert_and_rollback) ... ok
+test_paragraphs_stay_in_page (tests.test_pdf.PdfLayoutTest.test_paragraphs_stay_in_page) ... ok
+
+----------------------------------------------------------------------
+Ran 27 tests in 7.051s
+
+OK
